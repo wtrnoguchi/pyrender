@@ -335,7 +335,7 @@ class Renderer(object):
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        if not bool(flags & RenderFlags.SEG):
+        if not bool(flags & RenderFlags.SEG) and not bool(flags & RenderFlags.DISABLE_ANTI_ALIASING):
             glEnable(GL_MULTISAMPLE)
         else:
             glDisable(GL_MULTISAMPLE)
@@ -1009,7 +1009,7 @@ class Renderer(object):
 
         # If using offscreen render, bind main framebuffer
         if flags & RenderFlags.OFFSCREEN:
-            self._configure_main_framebuffer()
+            self._configure_main_framebuffer(flags)
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._main_fb_ms)
         else:
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)
@@ -1051,7 +1051,7 @@ class Renderer(object):
         if self._shadow_fb is not None:
             glDeleteFramebuffers(1, [self._shadow_fb])
 
-    def _configure_main_framebuffer(self):
+    def _configure_main_framebuffer(self, flags):
         # If mismatch with prior framebuffer, delete it
         if (self._main_fb is not None and
                 self.viewport_width != self._main_fb_dims[0] or
@@ -1089,15 +1089,27 @@ class Renderer(object):
             # Generate multisample buffer
             self._main_cb_ms, self._main_db_ms = glGenRenderbuffers(2)
             glBindRenderbuffer(GL_RENDERBUFFER, self._main_cb_ms)
-            glRenderbufferStorageMultisample(
-                GL_RENDERBUFFER, 4, GL_RGBA,
-                self.viewport_width, self.viewport_height
-            )
+            if not bool(flags & RenderFlags.DISABLE_ANTI_ALIASING):
+                glRenderbufferStorageMultisample(
+                    GL_RENDERBUFFER, 4, GL_RGBA,
+                    self.viewport_width, self.viewport_height
+                )
+            else:
+                glRenderbufferStorage(
+                    GL_RENDERBUFFER, GL_RGBA,
+                    self.viewport_width, self.viewport_height
+                )
             glBindRenderbuffer(GL_RENDERBUFFER, self._main_db_ms)
-            glRenderbufferStorageMultisample(
-                GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT24,
-                self.viewport_width, self.viewport_height
-            )
+            if not bool(flags & RenderFlags.DISABLE_ANTI_ALIASING):
+                glRenderbufferStorageMultisample(
+                    GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT24,
+                    self.viewport_width, self.viewport_height
+                )
+            else:
+                glRenderbufferStorage(
+                    GL_RENDERBUFFER, GL_DEPTH_COMPONENT24,
+                    self.viewport_width, self.viewport_height
+                )
             self._main_fb_ms = glGenFramebuffers(1)
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._main_fb_ms)
             glFramebufferRenderbuffer(
